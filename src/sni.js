@@ -28,7 +28,7 @@ const db = new CertsDB(dbFile);
 /**
  * @type {LRUCache<string, import("./db.js").CertCache>}
  */
-let resolveCache = new LRUCache({ max: 10000 });
+let tlsCertCache = new LRUCache({ max: 10000 });
 
 
 /**
@@ -37,7 +37,7 @@ let resolveCache = new LRUCache({ max: 10000 });
 let statCache;
 
 function pruneCache() {
-    resolveCache = new LRUCache({ max: 10000 });
+    tlsCertCache = new LRUCache({ max: 10000 });
 }
 
 function getStat() {
@@ -46,7 +46,7 @@ function getStat() {
     }
     statCache = {
         domains: db.countCert(),
-        in_mem: resolveCache.size,
+        in_mem: tlsCertCache.size,
         iat: Date.now(),
         exp: Date.now() + 1000 * 60 * 60,
     };
@@ -103,13 +103,13 @@ async function buildCache(host) {
  */
 async function getKeyCert(servername) {
     servername = servername.toLowerCase();
-    const cache = resolveCache.get(servername);
+    const cache = tlsCertCache.get(servername);
     if (!cache || (Date.now() > cache.expire)) {
         let cacheNew = await buildCache(servername);
         if (!cacheNew) {
             return undefined;
         }
-        resolveCache.set(servername, cacheNew);
+        tlsCertCache.set(servername, cacheNew);
         return {
             key: cacheNew.key,
             cert: cacheNew.cert,

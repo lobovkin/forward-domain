@@ -29,10 +29,10 @@ const MAX_DATA_SIZE = 10 * 1024; // 10 KB
 /**
  * @type {LRUCache<string, Cache>}
  */
-let resolveCache = new LRUCache({ max: 10000 });
+let httpRedirectCache = new LRUCache({ max: 10000 });
 
 function pruneCache() {
-    resolveCache = new LRUCache({ max: 10000 });
+    httpRedirectCache = new LRUCache({ max: 10000 });
 }
 
 /**
@@ -161,14 +161,18 @@ const listener = async function (req, res) {
                             }
 
                             if (validator.isFQDN(domain)) {
-                                const cacheExists = resolveCache.get(domain);
+                                const cacheExists = httpRedirectCache.get(domain);
                                 if (cacheExists) {
                                     // Remove the cache entry
-                                    resolveCache.delete(domain);
+                                    httpRedirectCache.delete(domain);
                                     debugOutput(1, `Cache cleared for ${domain}`);
                                 }
                             }
                         }
+                    });
+
+                    req.on('error', (err) => {
+                        debugOutput(3, `Request error during flushcache: ${err.message}`);
                     });
                     res.writeHead(200, { 'Content-Type': 'text/plain' });
                     res.write("Cache cleared");
@@ -176,10 +180,10 @@ const listener = async function (req, res) {
             }
 
         }
-        let cache = resolveCache.get(host);
+        let cache = httpRedirectCache.get(host);
         if (!cache || (Date.now() > cache.expire)) {
             cache = await buildCache(host);
-            resolveCache.set(host, cache);
+            httpRedirectCache.set(host, cache);
             debugOutput(1, `No cache found for ${host}, storing new data`);
         } else {
             debugOutput(1, `Found cache for ${host}, using stored data`);
