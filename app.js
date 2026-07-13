@@ -34,20 +34,13 @@ const bindAddress = process.env.BIND_ADDRESS || "::";
 const enableIpv4 = process.env.ENABLE_IPV4 === "true";
 console.log("Forward Domain running with env", process.env.NODE_ENV);
 
-const listenOptions = { host: bindAddress, ipv6Only: true };
+const listenOptions = { host: bindAddress };
+if (bindAddress === '::' && !enableIpv4) {
+    listenOptions.ipv6Only = true;
+}
 plainServer.listen(port80, listenOptions, () => {
-    console.log(`HTTP server listening on [${bindAddress}]:${port80}`);
+    console.log(`HTTP server listening on [${bindAddress}]:${port80}${enableIpv4 ? ' (dual-stack)' : ' (IPv6 only)'}`);
 });
 secureServer.listen(port443, listenOptions, () => {
-    console.log(`HTTPS server listening on [${bindAddress}]:${port443}`);
+    console.log(`HTTPS server listening on [${bindAddress}]:${port443}${enableIpv4 ? ' (dual-stack)' : ' (IPv6 only)'}`);
 });
-
-if (enableIpv4) {
-    const ipv4ListenOptions = { host: "0.0.0.0" };
-    plainServer.listen(port80, ipv4ListenOptions, () => {
-        console.log(`HTTP server also listening on 0.0.0.0:${port80} (IPv4 enabled)`);
-    });
-    secureServer.listen(port443, ipv4ListenOptions, () => {
-        console.log(`HTTPS server also listening on 0.0.0.0:${port443} (IPv4 enabled)`);
-    });
-}
