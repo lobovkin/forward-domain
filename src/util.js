@@ -25,6 +25,10 @@ const allowedHttpStatusCodes = {
  */
 let useLocalDNS = null
 /**
+ * @type {string | null}
+ */
+let resolverUrl = null;
+/**
  * @type {Record<string, boolean> | null}
  */
 let blacklistMap = null;
@@ -46,6 +50,16 @@ export function getExpiryDate() {
         cacheExpirySeconds = parseInt(process.env.CACHE_EXPIRY_SECONDS || '86400')
     }
     return Date.now() + cacheExpirySeconds * 1000;
+}
+
+/**
+ * @returns {string}
+ */
+function getResolverUrl() {
+    if (resolverUrl === null) {
+        resolverUrl = process.env.RESOLVER_URL || 'https://dns.google/resolve';
+    }
+    return resolverUrl;
 }
 
 /**
@@ -102,6 +116,7 @@ export function clearConfig() {
     blacklistRedirectUrl = null;
     cacheExpirySeconds = null;
     debugLevel = null;
+    resolverUrl = null;
 }
 
 /**
@@ -174,11 +189,9 @@ export function debugOutput(level,msg) {
     if (debugLevel === null) {
         debugLevel = validDebugLevels.includes(parseInt(process.env.DEBUG_LEVEL)) ? parseInt(process.env.DEBUG_LEVEL) : 0;
     }
-    if (debugLevel >= 1) {
+    if (level <= debugLevel) {
         const date = CurrentDate();
-        if (level <=  debugLevel) {
         console.log(`[${date}] ${msg}`);
-        }
     }
 }
 
@@ -256,7 +269,13 @@ export async function validateCAARecords(host, mockResolve = undefined) {
         /**
          * @type {{data: {Answer: {data: string, type: number}[]}}}
          */
-        const resolve = mockResolve || await request(`https://dns.google/resolve?name=${encodeURIComponent(host)}&type=CAA`);
+        let resolve;
+        try {
+            resolve = mockResolve || await request(`${getResolverUrl()}?name=${encodeURIComponent(host)}&type=CAA`);
+        } catch (err) {
+            debugOutput(3, `validateCAARecords resolver failed: ${err.message}`);
+            return null;
+        }
         if (!resolve.data.Answer) {
             return null;
         }
@@ -308,10 +327,17 @@ export async function findTxtRecord(host, mockResolve = undefined) {
         /**
          * @type {{data: string, type: number}[]}
          */
-        const resolve = mockResolve ? mockResolve.data.Answer : [
-            ...(await request(`https://dns.google/resolve?name=_.${encodeURIComponent(host)}&type=TXT`)).data.Answer || [],
-            ...(await request(`https://dns.google/resolve?name=fwd.${encodeURIComponent(host)}&type=TXT`)).data.Answer || [],
-        ];
+        let resolve;
+        try {
+            const baseUrl = getResolverUrl();
+            resolve = mockResolve ? mockResolve.data.Answer : [
+                ...(await request(`${baseUrl}?name=_.${encodeURIComponent(host)}&type=TXT`)).data.Answer || [],
+                ...(await request(`${baseUrl}?name=fwd.${encodeURIComponent(host)}&type=TXT`)).data.Answer || [],
+            ];
+        } catch (err) {
+            debugOutput(3, `findTxtRecord resolver failed: ${err.message}`);
+            return null;
+        }
         for (const head of resolve) {
             if (head.type !== 16) { // RR type of TXT is 16
                 continue;

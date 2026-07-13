@@ -82,7 +82,7 @@ It only slow at first time because it has to sign HTTPS certificates.
 
 ### How about IPv6?
 
-IPv6 record is added in `r.dnsredirect.eu` so subdomain redirects will simply work with IPv6. We don't guarantee that its IPv6 address will be persistent though. See [#2](https://github.com/willnode/forward-domain/issues/2#issuecomment-1003831835) for apex domains setup.
+IPv6 is supported by default. The service binds to IPv6 addresses (`::`) and services AAAA records. For self-hosting, see `HOSTING.md` for IPv6-only configuration. IPv4 support is optional via `ENABLE_IPV4=true` environment variable.
 
 ### What records do we keep?
 
