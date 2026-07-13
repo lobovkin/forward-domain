@@ -3,6 +3,13 @@
 **/*.md
 **/LICENSE
 
+# IDE / Tooling
+.kilo/
+.vscode/
+
+# Test
+test/
+
 # Git
 **/.git
 **/.github
